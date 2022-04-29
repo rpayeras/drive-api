@@ -6,34 +6,42 @@ import Google from './services/Google.js'
 import { exit } from 'process'
 
 const args = process.argv.slice(2)
-const filePath = args[0]
-const remoteFolder = args[1]
-
-if (!filePath || !remoteFolder) exit(console.log('No file or remote folder specified'))
-
-/* Reading the credentials.json file and parsing it. */
-const ext = filePath.split('.').pop()
-const mimeType = mime.lookup(ext) || 'application/octet-stream'
+const filePaths = args.slice(0, args.length - 1)
+const remoteFolder = args[args.length - 1]
 
 const googleService = new Google()
-
 await googleService.authorize()
 
-const folders = await googleService.searchFiles(remoteFolder, true)
+filePaths.forEach(async (filePath, index) => {
+  if (!filePath || !remoteFolder) exit(console.log('No file or remote folder specified'))
 
-const metadata = {
-  name: path.basename(filePath),
-  mimeType,
-  parents: [...folders.map(folder => folder.id)]
-}
+  /* Reading the credentials.json file and parsing it. */
+  const ext = filePath.split('.').pop()
+  const mimeType = mime.lookup(ext) || 'application/octet-stream'
 
-const content = {
-  mimeType,
-  body: fs.createReadStream(filePath)
-}
+  const folders = await googleService.searchFiles(remoteFolder, true)
 
-await googleService.deleteFileByName(metadata.name, false, metadata.parents)
+  const metadata = {
+    name: path.basename(filePath),
+    mimeType,
+    parents: [...folders.map(folder => folder.id)]
+  }
 
-console.log(`Uploading ${JSON.stringify(metadata)}`)
+  const content = {
+    mimeType,
+    body: fs.createReadStream(filePath)
+  }
 
-await googleService.uploadFile(content, metadata, folders)
+  console.log(`Uploading ${JSON.stringify(metadata)}`)
+
+  if (filePaths.length > 1) {
+    await googleService.deleteFileByName(metadata.name, false, metadata.parents)
+
+    if (index >= filePaths.length - 1) {
+      await googleService.uploadFile(content, metadata, folders)
+    }
+  } else {
+    await googleService.deleteFileByName(metadata.name, false, metadata.parents)
+    await googleService.uploadFile(content, metadata, folders)
+  }
+})

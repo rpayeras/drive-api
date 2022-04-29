@@ -143,7 +143,7 @@ export default class Google {
   deleteFileByName (name) {
     return new Promise((resolve, reject) => {
       this.searchFiles(name).then((files) => {
-        if (files.length === 0) reject(new Error('File to delete not found'))
+        if (files.length === 0) resolve('File to delete not found')
 
         Promise.all(files.map(file => {
           return new Promise((resolve, reject) => {
@@ -157,7 +157,7 @@ export default class Google {
             })
           })
         }))
-          .then(() => resolve())
+          .then(() => resolve(true))
           .catch(err => reject(err))
       })
     })
